@@ -79,3 +79,11 @@ yarn-error.log*
 ehthumbs.db
 Thumbs.db
 Thumbs.db:encryptable
+
+
+node_modules/
+.next/
+dist/
+.env
+*.log
+
