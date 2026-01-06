@@ -1,0 +1,23 @@
+[project]
+name = "todo-evolution"
+version = "1.0.0"
+description = "A simple CLI todo application that stores tasks in memory"
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [
+    { name = "Todo Evolution Team" }
+]
+dependencies = []
+
+[project.scripts]
+todo-app = "src.todo_app.main:main"
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0"
+]

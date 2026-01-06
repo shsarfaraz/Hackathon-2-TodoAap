@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(todo-app)",
+      "Bash(uv run python -c \"from src.todo_app.main import main; main\\(\\)\")",
+      "Bash(python test_view_functionality.py)",
+      "Bash(uv run pytest)",
+      "Bash(python -c \"from src.todo_app.main import main; main\\(\\)\")",
+      "Skill(sp.analyze)",
+      "Bash(bash -c '.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks')",
+      "Bash(python -m src.todo_app)",
+      "Bash(uv run python -m src.todo_app)",
+      "Bash(python test_cli_enhancements.py)"
+    ]
+  }
+}

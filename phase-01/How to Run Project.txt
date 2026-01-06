@@ -1,0 +1,16 @@
+ Application ko run karne ke liye yeh commands hai:
+
+  1. Direct Python command:
+
+  python -m src.todo_app
+
+  2. Ya phir aise bhi run kar sakte hain:
+
+  python src/todo_app/main.py
+
+  3. Agar app package install karna chahte hain aur phir run karna chahte hain:
+
+  Sabse pehle package install karein:
+  uv pip install -e .
+  Ya fir:
+  pip install -e .
