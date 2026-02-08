@@ -1,0 +1,146 @@
+openapi: 3.0.3
+info:
+  title: Recurring Task Service API
+  description: API for the Recurring Task Service that handles creation of recurring task instances
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the service
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2026-02-07T10:00:00Z"
+
+  /process-event:
+    post:
+      summary: Process task event
+      description: Process incoming task events to handle recurring task logic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskEvent'
+      responses:
+        '200':
+          description: Event processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  processed:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Event processed successfully"
+        '400':
+          description: Invalid event data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid event data"
+
+components:
+  schemas:
+    TaskEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the event
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the event occurred
+        eventType:
+          type: string
+          enum: [task.created, task.updated, task.completed, task.deleted, task.recurring_created]
+          description: Type of task event
+        userId:
+          type: string
+          format: uuid
+          description: ID of the user associated with the event
+        taskId:
+          type: string
+          format: uuid
+          description: ID of the task associated with the event
+        payload:
+          type: object
+          description: Event-specific data
+        correlationId:
+          type: string
+          format: uuid
+          description: ID to correlate related events
+        causationId:
+          type: string
+          format: uuid
+          description: ID of the event that caused this event
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the task
+        userId:
+          type: string
+          format: uuid
+          description: Reference to the user who owns the task
+        title:
+          type: string
+          description: Title of the task
+        description:
+          type: string
+          description: Optional description of the task
+        completed:
+          type: boolean
+          description: Boolean indicating if the task is completed
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 2
+          description: Priority level (0: low, 1: medium, 2: high)
+        dueDate:
+          type: string
+          format: date-time
+          description: Optional due date for the task
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the task was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the task was last updated
+        completedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the task was marked as completed
+        recurringRule:
+          type: string
+          description: Cron expression for recurring tasks
+        parentTaskId:
+          type: string
+          format: uuid
+          description: Reference to the parent task for recurring task instances

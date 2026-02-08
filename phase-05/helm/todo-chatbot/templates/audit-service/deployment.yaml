@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "todo-chatbot.fullname" . }}-audit-service
+  labels:
+    {{- include "todo-chatbot.labels" . | nindent 4 }}
+    app: audit-service
+spec:
+  replicas: {{ .Values.auditService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "todo-chatbot.selectorLabels" . | nindent 6 }}
+      app: audit-service
+  template:
+    metadata:
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "audit-service"
+        dapr.io/app-port: "{{ .Values.auditService.service.port }}"
+        dapr.io/config: "{{ .Values.dapr.config }}"
+        dapr.io/protocol: "{{ .Values.dapr.protocol }}"
+      labels:
+        {{- include "todo-chatbot.selectorLabels" . | nindent 8 }}
+        app: audit-service
+    spec:
+      containers:
+        - name: audit-service
+          image: "{{ .Values.auditService.image.repository }}:{{ .Values.auditService.image.tag }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.auditService.service.port }}
+          env:
+            - name: DATABASE_URL
+              value: {{ .Values.env.DATABASE_URL }}
+            - name: PYTHONPATH
+              value: {{ .Values.env.PYTHONPATH }}
+          resources:
+            {{- toYaml .Values.auditService.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "todo-chatbot.fullname" . }}-audit-service
+  labels:
+    {{- include "todo-chatbot.labels" . | nindent 4 }}
+    app: audit-service
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.auditService.service.port }}
+      targetPort: {{ .Values.auditService.service.port }}
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "todo-chatbot.selectorLabels" . | nindent 4 }}
+    app: audit-service

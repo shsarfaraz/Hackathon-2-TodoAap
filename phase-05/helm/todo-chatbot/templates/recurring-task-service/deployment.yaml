@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "todo-chatbot.fullname" . }}-recurring-task-service
+  labels:
+    {{- include "todo-chatbot.labels" . | nindent 4 }}
+    app: recurring-task-service
+spec:
+  replicas: {{ .Values.recurringTaskService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "todo-chatbot.selectorLabels" . | nindent 6 }}
+      app: recurring-task-service
+  template:
+    metadata:
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "recurring-task-service"
+        dapr.io/app-port: "{{ .Values.recurringTaskService.service.port }}"
+        dapr.io/config: "{{ .Values.dapr.config }}"
+        dapr.io/protocol: "{{ .Values.dapr.protocol }}"
+      labels:
+        {{- include "todo-chatbot.selectorLabels" . | nindent 8 }}
+        app: recurring-task-service
+    spec:
+      containers:
+        - name: recurring-task-service
+          image: "{{ .Values.recurringTaskService.image.repository }}:{{ .Values.recurringTaskService.image.tag }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.recurringTaskService.service.port }}
+          env:
+            - name: DATABASE_URL
+              value: {{ .Values.env.DATABASE_URL }}
+            - name: PYTHONPATH
+              value: {{ .Values.env.PYTHONPATH }}
+          resources:
+            {{- toYaml .Values.recurringTaskService.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "todo-chatbot.fullname" . }}-recurring-task-service
+  labels:
+    {{- include "todo-chatbot.labels" . | nindent 4 }}
+    app: recurring-task-service
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.recurringTaskService.service.port }}
+      targetPort: {{ .Values.recurringTaskService.service.port }}
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "todo-chatbot.selectorLabels" . | nindent 4 }}
+    app: recurring-task-service

@@ -1,0 +1,536 @@
+---
+# Source: todo-chatbot/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: todo-chatbot
+  labels:
+    helm.sh/chart: todo-chatbot-0.1.0
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: todo-chatbot/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todo-chatbot-config
+  labels:
+    helm.sh/chart: todo-chatbot-0.1.0
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  # Add any configuration data here
+  config.properties: |
+    # Configuration properties for the todo-chatbot service
+    server.port=8080
+    # Add other configuration properties as needed
+---
+# Source: todo-chatbot/templates/audit-service/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-chatbot-audit-service
+  labels:
+    helm.sh/chart: todo-chatbot-0.1.0
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app: audit-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: todo-chatbot
+      app.kubernetes.io/instance: todo-chatbot
+      app: audit-service
+  template:
+    metadata:
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "audit-service"
+        dapr.io/app-port: "50001"
+        dapr.io/config: "tracing"
+        dapr.io/protocol: "grpc"
+      labels:
+        app.kubernetes.io/name: todo-chatbot
+        app.kubernetes.io/instance: todo-chatbot
+        app: audit-service
+    spec:
+      containers:
+        - name: audit-service
+          image: "todo-chatbot/audit-service:latest"
+          imagePullPolicy: Never  # Changed to Never since images are built locally in Minikube
+          ports:
+            - containerPort: 50001
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://postgres:supersecurepassword@postgresql-postgresql.primary.svc.cluster.local:5432/postgres?sslmode=disable"
+            - name: PYTHONPATH
+              value: "/app/src"
+          resources:
+            limits:
+              cpu: 300m
+              memory: 256Mi
+            requests:
+              cpu: 150m
+              memory: 128Mi
+          # Add health checks
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "python -c 'import sys; import socket; s=socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect((\"localhost\", 50001))'"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "python -c 'import sys; import socket; s=socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect((\"localhost\", 50001))'"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+# Source: todo-chatbot/templates/audit-service/deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-chatbot-audit-service
+  labels:
+    helm.sh/chart: todo-chatbot-0.1.0
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app: audit-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 50001
+      targetPort: 50001
+      protocol: TCP
+      name: grpc
+  selector:
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app: audit-service
+---
+# Source: todo-chatbot/templates/chat-api/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-chatbot-chat-api
+  labels:
+    helm.sh/chart: todo-chatbot-0.1.0
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app: chat-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: todo-chatbot
+      app.kubernetes.io/instance: todo-chatbot
+      app: chat-api
+  template:
+    metadata:
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "chat-api"
+        dapr.io/app-port: "8000"
+        dapr.io/config: "tracing"
+        dapr.io/protocol: "http"
+      labels:
+        app.kubernetes.io/name: todo-chatbot
+        app.kubernetes.io/instance: todo-chatbot
+        app: chat-api
+    spec:
+      containers:
+        - name: chat-api
+          image: "todo-chatbot/chat-api:latest"
+          imagePullPolicy: Never  # Changed to Never since images are built locally in Minikube
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://postgres:supersecurepassword@postgresql-postgresql.primary.svc.cluster.local:5432/postgres?sslmode=disable"
+            - name: PYTHONPATH
+              value: "/app/src"
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          # Add health checks
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+# Source: todo-chatbot/templates/chat-api/deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-chatbot-chat-api
+  labels:
+    helm.sh/chart: todo-chatbot-0.1.0
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app: chat-api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app: chat-api
+---
+# Source: todo-chatbot/templates/frontend/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-chatbot-frontend
+  labels:
+    helm.sh/chart: todo-chatbot-0.1.0
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: todo-chatbot
+      app.kubernetes.io/instance: todo-chatbot
+      app: frontend
+  template:
+    metadata:
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "frontend"
+        dapr.io/app-port: "3000"
+        dapr.io/config: "tracing"
+        dapr.io/protocol: "http"
+      labels:
+        app.kubernetes.io/name: todo-chatbot
+        app.kubernetes.io/instance: todo-chatbot
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: "todo-chatbot/frontend:latest"
+          imagePullPolicy: Never  # Changed to Never since images are built locally in Minikube
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_BASE_URL
+              value: "http://todo-chatbot-chat-api:8000"
+          resources:
+            limits:
+              cpu: 300m
+              memory: 256Mi
+            requests:
+              cpu: 150m
+              memory: 128Mi
+          # Add health checks
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+# Source: todo-chatbot/templates/frontend/deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-chatbot-frontend
+  labels:
+    helm.sh/chart: todo-chatbot-0.1.0
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app: frontend
+---
+# Source: todo-chatbot/templates/notification-service/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-chatbot-notification-service
+  labels:
+    helm.sh/chart: todo-chatbot-0.1.0
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app: notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: todo-chatbot
+      app.kubernetes.io/instance: todo-chatbot
+      app: notification-service
+  template:
+    metadata:
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "notification-service"
+        dapr.io/app-port: "50001"
+        dapr.io/config: "tracing"
+        dapr.io/protocol: "grpc"
+      labels:
+        app.kubernetes.io/name: todo-chatbot
+        app.kubernetes.io/instance: todo-chatbot
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: "todo-chatbot/notification-service:latest"
+          imagePullPolicy: Never  # Changed to Never since images are built locally in Minikube
+          ports:
+            - containerPort: 50001
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://postgres:supersecurepassword@postgresql-postgresql.primary.svc.cluster.local:5432/postgres?sslmode=disable"
+            - name: PYTHONPATH
+              value: "/app/src"
+          resources:
+            limits:
+              cpu: 300m
+              memory: 256Mi
+            requests:
+              cpu: 150m
+              memory: 128Mi
+          # Add health checks
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "python -c 'import sys; import socket; s=socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect((\"localhost\", 50001))'"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "python -c 'import sys; import socket; s=socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect((\"localhost\", 50001))'"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+# Source: todo-chatbot/templates/notification-service/deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-chatbot-notification-service
+  labels:
+    helm.sh/chart: todo-chatbot-0.1.0
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app: notification-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 50001
+      targetPort: 50001
+      protocol: TCP
+      name: grpc
+  selector:
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app: notification-service
+---
+# Source: todo-chatbot/templates/recurring-task-service/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-chatbot-recurring-task-service
+  labels:
+    helm.sh/chart: todo-chatbot-0.1.0
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app: recurring-task-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: todo-chatbot
+      app.kubernetes.io/instance: todo-chatbot
+      app: recurring-task-service
+  template:
+    metadata:
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "recurring-task-service"
+        dapr.io/app-port: "50001"
+        dapr.io/config: "tracing"
+        dapr.io/protocol: "grpc"
+      labels:
+        app.kubernetes.io/name: todo-chatbot
+        app.kubernetes.io/instance: todo-chatbot
+        app: recurring-task-service
+    spec:
+      containers:
+        - name: recurring-task-service
+          image: "todo-chatbot/recurring-task-service:latest"
+          imagePullPolicy: Never  # Changed to Never since images are built locally in Minikube
+          ports:
+            - containerPort: 50001
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://postgres:supersecurepassword@postgresql-postgresql.primary.svc.cluster.local:5432/postgres?sslmode=disable"
+            - name: PYTHONPATH
+              value: "/app/src"
+          resources:
+            limits:
+              cpu: 300m
+              memory: 256Mi
+            requests:
+              cpu: 150m
+              memory: 128Mi
+          # Add health checks
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "python -c 'import sys; import socket; s=socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect((\"localhost\", 50001))'"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "python -c 'import sys; import socket; s=socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect((\"localhost\", 50001))'"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+# Source: todo-chatbot/templates/recurring-task-service/deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-chatbot-recurring-task-service
+  labels:
+    helm.sh/chart: todo-chatbot-0.1.0
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app: recurring-task-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 50001
+      targetPort: 50001
+      protocol: TCP
+      name: grpc
+  selector:
+    app.kubernetes.io/name: todo-chatbot
+    app.kubernetes.io/instance: todo-chatbot
+    app: recurring-task-service
+---
+# Source: todo-chatbot/templates/dapr-components/components.yaml
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+  - name: brokers
+    value: "my-cluster-kafka-brokers.kafka:9092"  # Kafka broker address
+  - name: consumerGroup
+    value: "dapr-consumer-group"  # Consumer group for Dapr
+  - name: clientID
+    value: "dapr-client"
+  - name: authRequired
+    value: "false"  # Set to "true" if authentication is required
+---
+# Source: todo-chatbot/templates/dapr-components/components.yaml
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+  - name: connectionString
+    value: "host=postgresql-postgresql.primary.svc.cluster.local user=postgres password=supersecurepassword port=5432 database=postgres sslmode=disable"
+  - name: actorStateStore
+    value: "true"
+---
+# Source: todo-chatbot/templates/dapr-components/components.yaml
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: secrets
+spec:
+  type: secretstores.kubernetes
+  version: v1
+  metadata:
+  - name: namespace
+    value: "default"
+---
+# Source: todo-chatbot/templates/dapr-components/components.yaml
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: jobs
+spec:
+  type: bindings.cron
+  version: v1
+  metadata:
+  - name: schedule
+    value: "*/30 * * * *"  # Example cron schedule - runs every 30 minutes

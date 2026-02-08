@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "todo-chatbot.fullname" . }}-config
+  labels:
+    {{- include "todo-chatbot.labels" . | nindent 4 }}
+data:
+  # Add any configuration data here
+  config.properties: |
+    # Configuration properties for the todo-chatbot service
+    server.port={{ .Values.service.containerPort }}
+    # Add other configuration properties as needed

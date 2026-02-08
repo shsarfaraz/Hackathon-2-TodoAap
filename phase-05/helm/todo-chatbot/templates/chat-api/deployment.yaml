@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "todo-chatbot.fullname" . }}-chat-api
+  labels:
+    {{- include "todo-chatbot.labels" . | nindent 4 }}
+    app: chat-api
+spec:
+  replicas: {{ .Values.chatApi.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "todo-chatbot.selectorLabels" . | nindent 6 }}
+      app: chat-api
+  template:
+    metadata:
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "chat-api"
+        dapr.io/app-port: "{{ .Values.chatApi.service.port }}"
+        dapr.io/config: "{{ .Values.dapr.config }}"
+        dapr.io/protocol: "{{ .Values.dapr.protocol }}"
+      labels:
+        {{- include "todo-chatbot.selectorLabels" . | nindent 8 }}
+        app: chat-api
+    spec:
+      containers:
+        - name: chat-api
+          image: "{{ .Values.chatApi.image.repository }}:{{ .Values.chatApi.image.tag }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.chatApi.service.port }}
+          env:
+            - name: DATABASE_URL
+              value: {{ .Values.env.DATABASE_URL }}
+            - name: PYTHONPATH
+              value: {{ .Values.env.PYTHONPATH }}
+          resources:
+            {{- toYaml .Values.chatApi.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "todo-chatbot.fullname" . }}-chat-api
+  labels:
+    {{- include "todo-chatbot.labels" . | nindent 4 }}
+    app: chat-api
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.chatApi.service.port }}
+      targetPort: {{ .Values.chatApi.service.port }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "todo-chatbot.selectorLabels" . | nindent 4 }}
+    app: chat-api

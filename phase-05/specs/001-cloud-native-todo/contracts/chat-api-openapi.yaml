@@ -1,0 +1,554 @@
+openapi: 3.0.3
+info:
+  title: Todo Chat API
+  description: API for the Todo Chatbot service that handles conversation with AI and task management
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.todo-chatbot.com
+    description: Production server
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the service
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2026-02-07T10:00:00Z"
+
+  /conversations:
+    get:
+      summary: List user's conversations
+      description: Retrieve a list of conversations for the authenticated user
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      summary: Create a new conversation
+      description: Create a new conversation with the AI assistant
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Title for the conversation
+                  example: "My new conversation"
+      responses:
+        '201':
+          description: Conversation created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /conversations/{conversationId}:
+    get:
+      summary: Get conversation details
+      description: Retrieve details of a specific conversation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Conversation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationWithMessages'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /conversations/{conversationId}/messages:
+    get:
+      summary: Get messages in a conversation
+      description: Retrieve all messages in a specific conversation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of messages in the conversation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    post:
+      summary: Send a message in conversation
+      description: Send a message to the AI assistant in a specific conversation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  description: The message content
+                  example: "Add a new task to buy groceries"
+      responses:
+        '201':
+          description: Message sent successfully, response from AI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /tasks:
+    get:
+      summary: List user's tasks
+      description: Retrieve a list of tasks for the authenticated user
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, pending, completed]
+            default: all
+          description: Filter tasks by status
+        - name: priority
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 2
+          description: Filter tasks by priority (0: low, 1: medium, 2: high)
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      summary: Create a new task
+      description: Create a new task for the authenticated user
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /tasks/{taskId}:
+    get:
+      summary: Get task details
+      description: Retrieve details of a specific task
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      summary: Update a task
+      description: Update an existing task
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete a task
+      description: Delete a specific task
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Task deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /tasks/{taskId}/toggle-completion:
+    patch:
+      summary: Toggle task completion
+      description: Toggle the completion status of a task
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task completion toggled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the user
+        email:
+          type: string
+          format: email
+          description: User's email address
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the user was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the user was last updated
+        isActive:
+          type: boolean
+          description: Flag indicating if the user account is active
+        lastLoginAt:
+          type: string
+          format: date-time
+          description: Timestamp of the user's last login
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the task
+        userId:
+          type: string
+          format: uuid
+          description: Reference to the user who owns the task
+        title:
+          type: string
+          description: Title of the task
+        description:
+          type: string
+          description: Optional description of the task
+        completed:
+          type: boolean
+          description: Boolean indicating if the task is completed
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 2
+          description: Priority level (0: low, 1: medium, 2: high)
+        dueDate:
+          type: string
+          format: date-time
+          description: Optional due date for the task
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the task was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the task was last updated
+        completedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the task was marked as completed
+        recurringRule:
+          type: string
+          description: Cron expression for recurring tasks
+        parentTaskId:
+          type: string
+          format: uuid
+          description: Reference to the parent task for recurring task instances
+
+    TaskCreate:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          description: Title of the task
+          maxLength: 255
+        description:
+          type: string
+          description: Optional description of the task
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 2
+          default: 0
+          description: Priority level (0: low, 1: medium, 2: high)
+        dueDate:
+          type: string
+          format: date-time
+          description: Optional due date for the task
+        recurringRule:
+          type: string
+          description: Cron expression for recurring tasks
+
+    TaskUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Title of the task
+          maxLength: 255
+        description:
+          type: string
+          description: Optional description of the task
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 2
+          description: Priority level (0: low, 1: medium, 2: high)
+        dueDate:
+          type: string
+          format: date-time
+          description: Optional due date for the task
+        recurringRule:
+          type: string
+          description: Cron expression for recurring tasks
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the conversation
+        userId:
+          type: string
+          format: uuid
+          description: Reference to the user who owns the conversation
+        title:
+          type: string
+          description: Title of the conversation
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the conversation was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the conversation was last updated
+        isActive:
+          type: boolean
+          description: Flag indicating if the conversation is active
+
+    ConversationWithMessages:
+      allOf:
+        - $ref: '#/components/schemas/Conversation'
+        - type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the message
+        conversationId:
+          type: string
+          format: uuid
+          description: Reference to the conversation this message belongs to
+        role:
+          type: string
+          enum: [user, assistant, system]
+          description: Role of the message sender
+        content:
+          type: string
+          description: Content of the message
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the message was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the message was last updated
+        metadata:
+          type: object
+          description: Additional metadata for the message
+
+  responses:
+    BadRequestError:
+      description: Bad request - invalid input
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Invalid input data"
+              details:
+                type: object
+                example: {"field": "error details"}
+
+    UnauthorizedError:
+      description: Unauthorized - invalid or missing authentication
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Not authenticated"
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Resource not found"

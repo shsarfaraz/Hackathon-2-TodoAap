@@ -1,0 +1,16 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+  - name: brokers
+    value: "my-cluster-kafka-brokers.kafka:9092"  # Kafka broker address
+  - name: consumerGroup
+    value: "dapr-consumer-group"  # Consumer group for Dapr
+  - name: clientID
+    value: "dapr-client"
+  - name: authRequired
+    value: "false"  # Set to "true" if authentication is required

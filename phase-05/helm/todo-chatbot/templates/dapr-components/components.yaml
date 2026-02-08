@@ -1,0 +1,51 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+  - name: brokers
+    value: "my-cluster-kafka-brokers.kafka:9092"  # Kafka broker address
+  - name: consumerGroup
+    value: "dapr-consumer-group"  # Consumer group for Dapr
+  - name: clientID
+    value: "dapr-client"
+  - name: authRequired
+    value: "false"  # Set to "true" if authentication is required
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+  - name: connectionString
+    value: "host={{ .Values.database.host }} user={{ .Values.database.user }} password={{ .Values.database.password }} port={{ .Values.database.port }} database={{ .Values.database.dbName }} sslmode={{ .Values.database.sslMode }}"
+  - name: actorStateStore
+    value: "true"
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: secrets
+spec:
+  type: secretstores.kubernetes
+  version: v1
+  metadata:
+  - name: namespace
+    value: "default"
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: jobs
+spec:
+  type: bindings.cron
+  version: v1
+  metadata:
+  - name: schedule
+    value: "*/30 * * * *"  # Example cron schedule - runs every 30 minutes

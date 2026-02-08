@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "todo-chatbot.fullname" . }}-notification-service
+  labels:
+    {{- include "todo-chatbot.labels" . | nindent 4 }}
+    app: notification-service
+spec:
+  replicas: {{ .Values.notificationService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "todo-chatbot.selectorLabels" . | nindent 6 }}
+      app: notification-service
+  template:
+    metadata:
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "notification-service"
+        dapr.io/app-port: "{{ .Values.notificationService.service.port }}"
+        dapr.io/config: "{{ .Values.dapr.config }}"
+        dapr.io/protocol: "{{ .Values.dapr.protocol }}"
+      labels:
+        {{- include "todo-chatbot.selectorLabels" . | nindent 8 }}
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: "{{ .Values.notificationService.image.repository }}:{{ .Values.notificationService.image.tag }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.notificationService.service.port }}
+          env:
+            - name: DATABASE_URL
+              value: {{ .Values.env.DATABASE_URL }}
+            - name: PYTHONPATH
+              value: {{ .Values.env.PYTHONPATH }}
+          resources:
+            {{- toYaml .Values.notificationService.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "todo-chatbot.fullname" . }}-notification-service
+  labels:
+    {{- include "todo-chatbot.labels" . | nindent 4 }}
+    app: notification-service
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.notificationService.service.port }}
+      targetPort: {{ .Values.notificationService.service.port }}
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "todo-chatbot.selectorLabels" . | nindent 4 }}
+    app: notification-service

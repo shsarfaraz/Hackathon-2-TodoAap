@@ -1,0 +1,165 @@
+openapi: 3.0.3
+info:
+  title: Audit Service API
+  description: API for the Audit Service that handles logging of task activities
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the service
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2026-02-07T10:00:00Z"
+
+  /log-event:
+    post:
+      summary: Log task event
+      description: Log incoming task events to maintain an immutable audit trail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskEvent'
+      responses:
+        '200':
+          description: Event logged successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logged:
+                    type: boolean
+                    example: true
+                  logId:
+                    type: string
+                    format: uuid
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+                  message:
+                    type: string
+                    example: "Event logged successfully"
+        '400':
+          description: Invalid event data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid event data"
+
+  /audit-log/{taskId}:
+    get:
+      summary: Get audit log for a task
+      description: Retrieve the audit log for a specific task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Audit log for the task
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLogEntry'
+        '404':
+          description: Task not found in audit log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Task not found in audit log"
+
+components:
+  schemas:
+    TaskEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the event
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the event occurred
+        eventType:
+          type: string
+          enum: [task.created, task.updated, task.completed, task.deleted, task.recurring_created]
+          description: Type of task event
+        userId:
+          type: string
+          format: uuid
+          description: ID of the user associated with the event
+        taskId:
+          type: string
+          format: uuid
+          description: ID of the task associated with the event
+        payload:
+          type: object
+          description: Event-specific data
+        correlationId:
+          type: string
+          format: uuid
+          description: ID to correlate related events
+        causationId:
+          type: string
+          format: uuid
+          description: ID of the event that caused this event
+
+    AuditLogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the audit log entry
+        taskId:
+          type: string
+          format: uuid
+          description: Reference to the task this audit log is for
+        userId:
+          type: string
+          format: uuid
+          description: Reference to the user who performed the action
+        action:
+          type: string
+          enum: [created, updated, completed, deleted, recurring_created]
+          description: Type of action performed
+        previousState:
+          type: object
+          description: Previous state of the task before the action (JSON representation)
+        newState:
+          type: object
+          description: New state of the task after the action (JSON representation)
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the audit log entry was created
+        metadata:
+          type: object
+          description: Additional metadata about the action
